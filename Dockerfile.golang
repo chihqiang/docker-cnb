@@ -1,0 +1,3 @@
+FROM zhiqiangwang/cnb:debian
+ARG GVM_VERSION=go1.23.12
+RUN bash -c "source ~/.bashrc && gvm install ${GO_VERSION} -B && gvm use ${GO_VERSION} --default"
