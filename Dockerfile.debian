@@ -1,0 +1,15 @@
+FROM debian:bookworm-slim
+LABEL maintainer wangzhiqiang
+WORKDIR /root
+ENV LANG=zh_CN.UTF-8
+RUN sed -i 's@deb.debian.org@mirrors.cloud.tencent.com@g' /etc/apt/sources.list.d/debian.sources &&\
+    apt-get update && apt-get install -y iputils-ping htop rsync lsof git-lfs dnsutils zip \
+    curl wget unzip telnet bash-completion vim net-tools tcpdump jq netcat-openbsd make git openssh-server \
+    libltdl-dev python3-pip openssl libssl-dev glibc-doc locales fonts-noto-cjk && \
+    apt-get clean && rm -rf /var/cache/apt/* &&\
+    echo '========= set timezone =========' &&\
+    sed -i 's/# zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen &&\
+    locale-gen zh_CN.UTF-8 && update-locale LANG=zh_CN.UTF-8 &&\
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
+    echo "Asia/Shanghai" > /etc/timezone &&\
+    ln -sf /bin/bash /bin/sh
