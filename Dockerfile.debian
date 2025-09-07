@@ -1,0 +1,122 @@
+FROM debian:bookworm-slim
+
+# 镜像维护者信息
+LABEL maintainer wangzhiqiang
+
+# 设置工作目录为 /root
+WORKDIR /root
+
+# 设置系统语言为中文 UTF-8
+ENV LANG=zh_CN.UTF-8
+
+# 替换 apt 源为腾讯云镜像，加快下载速度
+# 并安装基础系统工具、网络工具、文本编辑器、开发库等
+RUN sed -i 's@deb.debian.org@mirrors.cloud.tencent.com@g' /etc/apt/sources.list.d/debian.sources &&\
+    apt-get update && apt-get install -y iputils-ping htop rsync lsof git-lfs dnsutils &&\
+    apt-get install -y curl wget unzip telnet bash-completion vim net-tools tcpdump jq netcat-openbsd make git openssh-server &&\
+    apt-get install -y libltdl-dev python3-pip openssl libssl-dev glibc-doc locales fonts-noto-cjk &&\
+    # 安装开发环境：sudo, Redis, 数据库客户端, C/C++ 编译器和工具链, Mercurial
+    apt-get install -y sudo redis mariadb-client sqlite3 gcc g++ binutils bison build-essential bsdmainutils mercurial &&\
+    # 清理 apt 缓存，减小镜像体积
+    apt-get clean && rm -rf /var/cache/apt/* &&\
+    # 设置时区和 locale
+    echo '========= set timezone =========' &&\
+    sed -i 's/# zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen &&\
+    locale-gen zh_CN.UTF-8 && update-locale LANG=zh_CN.UTF-8 &&\
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
+    echo "Asia/Shanghai" > /etc/timezone &&\
+    # 将 /bin/sh 链接到 bash
+    ln -sf /bin/bash /bin/sh
+
+
+# install node
+ENV NODE_VERSION=20.19.4
+ENV NVM_DIR=/root/.nvm
+ENV PNPM_HOME=/root/.pnpm
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+RUN bash -c "source $NVM_DIR/nvm.sh && nvm install $NODE_VERSION && nvm alias default ${NODE_VERSION}"
+
+# install golang
+ENV GO_VERSION=go1.23.12
+# 设置环境变量
+# 语法：ENV <key>=<value> ...
+# 作用：定义容器运行时使用的环境变量，可以在容器内部或后续的指令中引用。
+# 示例：
+#   ENV MY_VAR=my_value
+#   ENV PATH=/usr/local/bin:$PATH
+ENV GOPATH=/root/go
+ENV PATH="${PATH}:${GOPATH}/bin"
+RUN bash < <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer) &&\
+     bash -c "source ~/.bashrc && gvm install ${GO_VERSION} -B && gvm use ${GO_VERSION} --default"
+
+
+#  将 nvm 和 gvm 的配置写入到最终的 zshrc 文件中
+# =====================================================================
+RUN cat <<'EOF' >> ~/.zshrc
+
+# Load GVM (Go Version Manager)
+[[ -s "$HOME/.gvm/scripts/gvm" ]] && source "$HOME/.gvm/scripts/gvm"
+
+# Load NVM (Node Version Manager)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+EOF
+
+
+# 安装 code-server（网页版 VS Code）
+RUN curl -fsSL https://code-server.dev/install.sh | sh &&\
+    # 安装 ESLint 插件，用于 JS/TS 代码检查
+    code-server --install-extension dbaeumer.vscode-eslint &&\
+    # 安装 Git 扩展包
+    code-server --install-extension pinage404.git-extension-pack &&\
+    # 安装 YAML 语言支持插件
+    code-server --install-extension redhat.vscode-yaml &&\
+    # 安装 Prettier 插件，自动格式化代码
+    code-server --install-extension esbenp.prettier-vscode &&\
+    # 安装 Go 语言支持插件
+    code-server --install-extension golang.go &&\
+    # 安装 python 语言支持插件
+    code-server --install-extension ms-python.python &&\
+    # 安装 GitLens 插件，增强 Git 功能
+    code-server --install-extension eamodio.gitlens &&\
+    # 安装 Git Graph，可视化查看提交记录
+    code-server --install-extension mhutchie.git-graph &&\
+    # 安装 Docker 插件，方便管理容器
+    code-server --install-extension ms-azuretools.vscode-docker &&\
+    # 安装 Material 图标主题
+    code-server --install-extension PKief.material-icon-theme &&\
+    # 安装 Git History 插件，查看历史提交
+    code-server --install-extension donjayamanne.githistory &&\
+    # 安装 Live Server 插件，前端实时预览
+    code-server --install-extension cloudstudio.live-server &&\
+    # 安装中文语言包
+    code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans &&\
+    # 安装腾讯云 Copilot AI 辅助插件
+    code-server --install-extension tencent-cloud.coding-copilot &&\
+    # 安装 Git Blame 插件，显示每行代码作者
+    code-server --install-extension waderyan.gitblame &&\
+    # 安装 CNB 欢迎插件
+    code-server --install-extension cnbcool.cnb-welcome &&\
+    # 安装 Error Lens 插件，显示代码错误在行上
+    code-server --install-extension usernamehw.errorlens &&\
+    # 安装 dotenv 插件，支持 .env 文件高亮
+    code-server --install-extension mikestead.dotenv &&\
+    # 安装 Vue Volar 插件
+    code-server --install-extension vue.volar &&\
+    # 安装 Iconify 插件，支持各种图标
+    code-server --install-extension antfu.iconify &&\
+    # 安装 Makefile 支持插件
+    code-server --install-extension ms-vscode.makefile-tools &&\
+    # 安装 Tailwind CSS 支持插件
+    code-server --install-extension bradlc.vscode-tailwindcss &&\
+    # 安装 SQLite3 编辑器插件
+    code-server --install-extension yy0931.vscode-sqlite3-editor &&\
+    # 安装通用数据库客户端插件（支持 MySQL/Redis/SQLServer 等）
+    code-server --install-extension cweijan.vscode-database-client2 &&\
+    # 安装路径智能补全插件
+    code-server --install-extension christian-kohler.path-intellisense &&\
+    # 安装 MarkdownLint 插件
+    code-server --install-extension DavidAnson.vscode-markdownlint &&\
+    # 打印 done，表示插件安装完成
+    echo done
